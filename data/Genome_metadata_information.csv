@@ -1,0 +1,101 @@
+﻿Sample,Taxon,Subspecies,Source,Reads or assemblies,Study,Accession number,Year of isolation,Year
+133,133,TPE,bone,reads,"Schuenemann, V. J. et al 2018",ERS2470995,2018,1669-1861
+15A019HM,15A019HM,SS14,clinical acquired,reads,Nishiki 2021,DRR213712,2015,2015
+17A021MM,17A021MM,Nichols,clinical acquired,reads,Nishiki 2021,DRR213718,2017,2017
+94B,94B,SS14,bone,reads,"Schuenemann, V. J. et al 2018",ERS2470994,2018,1654-1861
+AGU007,AGU007,TPE,premolar,reads,Giffin et. Al. 2020,ERR4000645,2020,1463-1632
+AR2,AR2,SS14,clinical acquired,reads,"Arora et al, 2016",SRR3268682,2013,2013
+AU17,AU17,SS14,clinical acquired,reads,"Arora et al, 2016",SRR3268724,2013,2013
+BAL3,BAL3,Nichols,rabbit inoculation,reads,"Arora et al, 2016",SRR3268715,1973,1973
+BNK07,BNK07,TPE,cotton swab,assembly,Mediannikov et al 2020,LT986433.1 ,2016,2016
+Bosnia_A,BosniaA,TEN,mucous patches and rabbit innoculation,assembly,"Štaudová, B. et al. 2014",SRR3268694,1950,1950
+C279,C279,TEN,clinical acquired,assembly,Vrbová et al 2022,CP078090,2017,2017
+C77,C77,TEN,clinical acquired,assembly,Vrbová et al 2022,CP081507.1,2014,2014
+CDC 2575,CDC_2575,TPE,"from a papillomatous lesion and inoculated into hamsters, and later propagated in New Zealand White rabbits",assembly,Strouhal et al.2017,CP020366.1,1980,1980
+CDC2,CDC2,TPE,rabbit inoculation,assembly,"Čejková, D. et al.2012",CP002375.1,1980,1980
+Cercocebus_TaiNP₂ (HATO),HATO,TPE,tissue,reads,"Knauf et al, 2018",SRR4308604,2013,2013
+Chat_5847,Chat_5847,TPE,Côte d'Ivoire,reads,Mubemba_2020_Microbial-Genomics,SRS5636328,2018,2018
+Chicago,Chicago,Nichols,rabbit passage,assembly,"Giacani, L. et al. 2010",NC_017268.1,1951,1951
+China30,China30,SS14,clinical acquired,assembly,Lieberman et al 2021,CP073572.1,2018,2018
+Chlorocebus sabaeus_NKNP1 (A10),NKNP1,TPE,swab,reads,"Knauf et al, 2018",SRR4308606,2015,2015
+CHS119,CHS119,TPE,premolar,reads,Majander et al 2020,PRJEB35855,2020,1450-1630
+CP0495_1,CP0495,TPE,clinical acquired,reads,"Beale et al, 2020",ERR1470343,2013,2013
+CW59,CW59,Nichols,clinical swab,reads,"Grillova et.al, 2019",SRR8501165,2012,2012
+CW65,CW65,Nichols,clinical swab,reads,"Grillova et.al, 2019",SRR8501164,2014,2014
+CW82,CW82,Nichols,clinical swab,reads,"Grillova et.al, 2019",SRR8501167,2016,2016
+CW83,CW83,Nichols,clinical swab,reads,"Grillova et.al, 2019",SRR8501166,2015,2015
+CW85,CW85,SS14,clinical swab,reads,"Grillova et.al, 2019",SRR8501168,2016,2016
+CW86,CW86,Nichols,clinical swab,reads,"Grillova et.al, 2019",SRR8501171,2013,2013
+Dublin57B,Dublin57B,SS14,clinical acquired,assembly,Lieberman et al 2021,CP073557.1 ,2002,2002
+Fribourg,Fribourg,TPE,rabbit inoculation,assembly,"Zobanikova, M. et al.2013",CP003902.1,1966,1966
+Gambia1,Gambia1,TPE,clinical acquired,reads,Knauf_2018,SRR4308597,2014,2014
+Gauthier,Gauthier,TPE,rabbit inoculation,assembly,"Čejková, D. et al.,2012",CP2376.1,1960,1960
+GHA1 (Ghana-051),GHA1,TPE,rabbit inoculation,reads,"Arora et al, 2016",SRR3268694,1988-1989,1988-1989
+GRA2,GRA2,SS14,rabbit passage,reads,"Arora et al, 2016",SRR3268696,1980-1999,1980-1999
+IraqB,IraqB,TEN,mucous patches and rabbit innoculation,assembly,Mikolova et al 2018,SRR3268700,1951,1951
+ItalyAS14,ItalyAS14,Nichols,clinical acquired,assembly,Lieberman et al 2021,CP073553.1,2017,2017
+Japan303,Japan303,Nichols,clinical acquired,assembly,Lieberman et al 2021,CP073536.1,2019,2019
+Japan317xi,Japan317xi,Nichols,clinical acquired,assembly,Lieberman et al 2021,CP073526.1,2019,2019
+Japan320e,Japan320e,TEN,clinical acquired,both,Lieberman et al 2021,CP073523.1/SRR14277267,2019,2019
+Japan322e,Japan322e,TEN,clinical acquired,both,Lieberman et al 2021,CP073522.1/SRR14277266,2019,2019
+Japan326e,Japan326e,TEN,clinical acquired,both,Lieberman et al 2021,CP073518.1/SRR14277458,2019,2019
+Japan346e,Japan346e,TEN,clinical acquired,both,Lieberman et al 2021,CP073506.1/SRR14277444,2019,2019
+K363,K363,TPE,"first inoculated in Syrian Golden hamsters, later several serial passages in rabbits",assembly,Strouhal et al.2018,CP024088.1,1990,1990
+K403,K403,TPE,"first inoculated in Syrian Golden hamsters, later several serial passages in rabbits",assembly,Strouhal et al.2018,CP024089.1,1990,1990
+Madras,Madras,Nichols,clinical acquired,assembly,unpublished,CP078121.1,1954,1954
+MD06B,MD06B,SS14,clinical acquired,assembly,"Lieberman, et al 2021",CP073490.1,2002,2002
+MD18Be,MD18Be,SS14,clinical acquired,assembly,"Lieberman, et al 2021",CP073487.1,1998,1998
+Mexico_A,MexicoA,SS14,rabbit inoculation,assembly,"Pětrošová, H. et al.2012",NC_018722.1,1953,1953
+NE19,NE19,SS14,clinical_acquired,reads,Arora_2016,SRR3268709,2013,2013
+NE20,NE20,Nichols,clinical acquired,reads,"Arora et al, 2016",SRR3268710,2013,2013
+Nichols,Nichols,Nichols,rabbit passage (highly passaged),assembly,"Pětrošová, H. et al.2013",NC_021490.2,1912,1912
+NL14,NL14,Nichols,clinical swab,reads,"Beale et al, 2019",ERS1724928,2016,2016
+NL16,NL16,SS14,clinical swab,reads,"Beale et al, 2019",ERS1724930,2016,2016
+OKA_2116,OKA_2116,TPE,genital swab,reads,"Mubemba et al, 2020",SRR10430858,2016,2016
+PD28,PD28,SS14,bone,reads,Majander et al 2020,PRJEB35855,2020,1666-1789
+PeruC10010x,PeruC10010x,SS14,clinical acquired,assembly,"Lieberman, et al 2021",CP073470.1,2019,2019
+PHE130048A,PHE130048A,Nichols,clinical swab,reads,Beale et al 2021,ERR4045394,2013,2013
+PHE140085A,PHE140085A,Nichols,clinical swab,reads,Beale et al 2021,ERR3684452,2014,2014
+PHE160190A,PHE160190A,SS14,clinical swab,reads,Beale et al 2021,ERR3684456,2016,2016
+PHE160283A,PHE160283A,Nichols,clinical swab,reads,Beale et al 2021,ERR3684465,2016,2016
+Philadelphia,philadelphia,SS14,,assembly,"Grillova et.al, 2019",CP035193.1,1988,1988
+PT_SIF1196,PT_SIF1196,SS14,clinical_acquired,reads,"Pinto, M. et al. 2016",SRR3584843,2013,2013
+R3-SAL-007,R3-SAL-007,TPE,clinical acquired,reads,"Beale et al, 2020",ERR3596780,2014,2014
+R7-KUN2-001B,R7-KUN-2001B,TPE,clinical acquired,reads,"Beale et al, 2020",ERR3596747,2016,2016
+R8-KOS-007,R8-KOS-007,TPE,clinical acquired,reads,"Beale et al, 2020",ERR3596783,2016,2016
+SamoaD,SamoaD,TPE,rabbit inoculation,assembly,"Čejková, D. et al.2012",NC_016842.1,1953,1953
+SJ219,SJ219,SS14,bone,reads,Majander et al 2020,PRJEB35855,2020,1463-1635
+SJN003,SJN003,TPE,tooth dentine,reads,Barquera et al. 2020,ERR4065503,2020,1436-1626
+SMUTp_09,SMUTp_09,SS14,chancre exudate,assembly,Wentao Chen et al 2021,CP051889.1,2018,2018
+SNK05,SNK05,TPE,cotton swab,assembly,Mediannikov et al 2020,LT986434.1,2016,2016
+SS14,SS14,SS14,rabbit passage,assembly,"Pětrošová, H. et al. 2013",NC_021508.1,1977,1977
+TPA_AUSMELT-1,TPA_AUSMELT-1,Nichols,rabbit passage,reads,Beale et al 2021,SRR13721290,1977,1977
+TPA_BCC081,TPA_BCC081,Nichols,clinical swab,reads,Beale et al 2021,ERR4853530,2013,2013
+TPA_EIR015,TPA_EIR015,Nichols,clinical swab,reads,Beale et al 2021,ERR4993349,2018,2018
+TPA_EIR017,TPA_EIR017,SS14,clinical swab,reads,Beale et al 2021,ERR4853587,2018,2018
+TPA_ESBCN005,TPA_ESBCN005,Nichols,clinical swab,reads,Beale et al 2021,ERR4899206,2015,2015
+TPA_HUN190020,TPA_HUN190020,Nichols,clinical swab,reads,Beale et al 2021,ERR5207017,2019,2019
+TPA_HUN200024,TPA_HUN200024,SS14,clinical swab,reads,Beale et al 2021,ERR5207018,2019,2019
+TPA_RUS_Tuva-41,TPA_RUS_Tuva-41,SS14,clinical swab,reads,Beale et al 2021,ERR5207019,2014,2014
+TPA_SA006,TPA_SA006,Nichols,clinical swab,reads,Beale et al 2021,ERR4899215,2006,2006
+TPA_ZIM018,TPA_ZIM018,Nichols,clinical swab,reads,Beale et al 2021,ERR4853623,2015,2015
+TPA_ZIM028,TPA_ZIM028,SS14,clinical swab,reads,Beale et al 2021,ERR4853625,2015,2015
+TPAUS_079,TPAUS_079,Nichols,clinical acquired,reads,"Taouk, Mona L., et al. 2022",SRR15440297,2016-06-22,2016
+TPAUS_099,TPAUS_099,SS14,clinical acquired,reads,"Taouk, Mona L., et al. 2022",SRR15440150,2016-02-05,2016
+TPAUS_272,TPAUS_272,Nichols,clinical acquired,reads,"Taouk, Mona L., et al. 2022",SRR15440451,2018-02-15,2018
+TPAUS_682,TPAUS_682,SS14,clinical acquired,reads,"Taouk, Mona L., et al. 2022",SRR15440240,2018-09-24,2018
+TPE LMNP-1,LMNP-1,TPE,olive baboon,assembly,Knauf et al 2018,CP021113.1,2005,2005
+TPP_LIB001,TPP_LIB001,TPE,clinical swab,reads,Timothy et al 2021,ERR4690809,2018,2018
+TPP_LIB003,TPP_LIB003,TPE,clinical swab,reads,Timothy et al 2021,ERR4690806,2018,2018
+TPP_LIB012,TPP_LIB012,TPE,clinical swab,reads,Timothy et al 2021,ERR4690810,2018,2018
+TPP_LIB015,TPP_LIB015,TPE,clinical swab,reads,Timothy et al 2021,ERR4690812,2018,2018
+TPP_LIB018,TPP_LIB018,TPE,clinical swab,reads,Timothy et al 2021,ERR4690811,2018,2018
+UAB211i,UAB211i,Nichols,clinical acquired,assembly,Lieberman et al 2021,CP073447.1,2002,2002
+UAB216i,UAB216i,Nichols,clinical acquired,assembly,Lieberman et al 2021,CP073446.1,2003,2003
+UAB546i,UAB546i,Nichols,clinical acquired,assembly,Lieberman et al 2021,CP073399.1,2007,2007
+UW116B,UW116B,SS14,rabbit passage (low),reads,"Beale et al, 2019",ERS1884567,2002,2002
+W86,W86,SS14,premolar,reads,Unpublished,NA,2020,1621-1670
+WP0022.7.scab,WP0022.7.scab,TPE,clinical acquired,reads,Marks_2017,ERR1470331,2013,2013
+X-4,X-4,SS14,clinical acquired,assembly,"Liu, Dan, et al 2021",CP040555.1,2017-05-22,2017
+ZH1540,ZH1540,TEN,bone,reads,this study,NA,2018-07-14,364-573
+ A10, A10,TEN,clinical swab,assembly,Mediannikov et al 2020,GCA_900291945.1,2015,2015
