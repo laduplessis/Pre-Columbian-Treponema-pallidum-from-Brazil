@@ -6,6 +6,8 @@
 
 This repository contains the data files, configuration files and scripts necesssary to reproduce the molecular clock dating analyses presented in " Redefining the treponemal history through pre-Columbian genomes from Brazil" (Majandar, Pla-Diaz et al). Some scripts may need some adjustments depending on the local setup. 
 
+[![DOI](https://zenodo.org/badge/694680319.svg)](https://zenodo.org/doi/10.5281/zenodo.10063175)
+
 ## Table of contents
 
 1. [Abstract](#Abstract)
