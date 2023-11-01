@@ -17,6 +17,8 @@ params:
   filename    : "all_01_02_23_alignment_norec.gtrgi.bsp10.uced.narrow"
   burnin      : 0.1
   reps        : 50
+  device      : "pdf"
+
 
 ---
 
@@ -29,10 +31,12 @@ params:
     source("../scripts/HPDBeanPlot.R")
 
     figpath <- paste0(params$outputpath, "figures/")
+    cachepath <- paste0(params$outputpath, "cache/")
+
     dir.create(figpath, recursive = TRUE, showWarnings = FALSE)
     
-    knitr::opts_chunk$set(tidy=FALSE, cache=FALSE, results='hide', 
-                          dev="png", fig.path=figpath, fig.width=7.5, fig.height=4,
+    knitr::opts_chunk$set(tidy=FALSE, cache=FALSE, results='hide', cache.path = cachepath, 
+                          dev=params$device, fig.path=figpath, fig.width=7.5, fig.height=4,
                           message=FALSE, error=FALSE, warning=FALSE, echo=FALSE)
 
     
