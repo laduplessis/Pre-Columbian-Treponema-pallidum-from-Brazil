@@ -1,0 +1,251 @@
+---
+title: "Molecular clock dating (robustness analysis)"
+subtitle: "Redefining the treponemal history through pre-Columbian genomes from Brazil"
+author: "Louis du Plessis"
+date: '`r format(Sys.time(), "Last modified: %d %b %Y")`'
+output: 
+  pdf_document:
+      latex_engine: xelatex
+      toc: true
+      toc_depth: 3
+      number_sections: true
+      keep_tex: false
+      fig_crop: false
+layout: page
+editor_options: 
+  chunk_output_type: inline
+params: 
+  metadata      : "../data/Genome_metadata_information.csv"
+  inputpath     : "../results/beast2/output/"
+  outputpath    : "../results/beast2/"
+  mostrecent    : 2019
+  device        : "cairo_pdf"
+---
+
+
+```{r setup, include=FALSE}
+ 
+    # Use dev = "cairo_pdf" to include unicode fonts!
+
+    library(coda)
+    library(beastio)
+
+    library(tidyverse)
+    library(ggridges)
+    library(cowplot)
+    
+    figpath   <- paste0(params$outputpath, "figures/") 
+    cachepath <- paste0(params$outputpath, "cache_robustness/")
+    dir.create(figpath, recursive = TRUE, showWarnings = FALSE)
+    knitr::opts_chunk$set(tidy=FALSE, cache=FALSE, cache.path = cachepath, 
+                          dev=params$device, fig.path=figpath, dpi=300,
+                          message=FALSE, error=TRUE, warning=FALSE, echo=FALSE)
+    
+    nameMap <- list("mrca.date.forward.SS14_W."  = "TPA (SS14-\u03c9)", #expression("SS14-"~omega),
+                    "mrca.date.forward.SS14."    = "TPA (SS14)",
+                    "mrca.date.forward.NICHOLS." = "TPA (Nichols)",
+                    "mrca.date.forward.TPA."     = "TPA",
+                    "mrca.date.forward.TPE."     = "TPE",
+                    "mrca.date.forward.TEN."     = "TEN",
+                    "mrca.date.forward.TPETEN."  = "TPE + TEN",
+                    "TreeHeight"                 = "T. pallidum")
+    
+    cladeCols  <- list("TPA (SS14-\u03c9)"  = "#E6AE9AC0", 
+                       "TPA (SS14)"         = "#B3CFCCC0",
+                       "TPA"                = "#80AEA9C0",
+                       "TPA (Nichols)"      = "#5098AFC0",    #8FBECD
+                       "TPE"                = "#F5E5BCC0",
+                       "TEN"                = "#CEB4A1C0", 
+                       "T. pallidum"        = "#E24D2EC0")
+    
+    metadata <- read.csv(params$metadata)
+    
+```
+
+```{r functions}
+
+formatHPD <- function(HPD, digits=2) {
+  HPD     <- round(HPD, digits)
+  result  <-  cbind(HPD[, "med"], 
+                    apply(HPD, 1, function(x) paste0("(", x["lower"], " - ", x["upper"], ")")))
+  colnames(result) <- c("Median", "(95% HPD)")
+  return(result)
+}
+
+#' Silly wrapper so ggridges can plot HPD lines instead of quantiles
+hpdWrapper     <- function(x, probs) { as.numeric(coda::HPDinterval(as.mcmc(x), diff(probs))) }
+
+
+plotCladeTMRCAs <- function(cladeTMRCAs, mrca, nameMap, cladeCols, xlim=c(-1500,2000), breaks=500) { 
+
+    model <- paste(nameMap[[mrca]], "tMRCA")
+  
+    model <- sym(model)
+
+    p <- ggplot(cladeTMRCAs, 
+                aes(x = `Date (CE)`, y = !!model, fill = `Subspecies (lineage) tMRCA`)) + 
+      geom_density_ridges2(show.legend = FALSE,
+                           rel_min_height = 0.005, scale = 1.2, 
+                           quantile_lines = TRUE, quantiles = c(0.025, 0.975), quantile_fun = hpdWrapper) + 
+      scale_fill_manual(values = unlist(cladeCols)) + 
+      theme_ridges(grid = FALSE, center_axis_labels = TRUE) + 
+      theme(panel.grid.major.y = element_blank() ,
+            panel.grid.major.x = element_line( size=0.15, color="grey50", linetype = "solid" ), 
+            text = element_text(size=11),
+            axis.text.x = element_text(size=10), 
+            axis.text.y = element_text(size=10),
+            axis.line.x = element_line( size=0.5, color="black")) +
+      scale_x_continuous(limits = c(xlim[1], xlim[2]), breaks = seq(xlim[1], xlim[2], by = breaks), oob = scales::oob_keep) + 
+      scale_y_discrete(expand = c(0, 0.7)) 
+
+}
+
+```
+
+
+```{r readlogfiles, cache=TRUE} 
+
+    vars <- c("TreeHeight|monophyletic|mrca|height|rate|clock|ucld")
+   
+    # UCED narrow BSP10
+    trace.all.bsp10.uced.narrow <- getLogFileSubset(readLog(paste0(params$inputpath, "all_01_02_23_alignment_norec.gtrgi.bsp10.uced.narrow.combined10_5E5.log"), burnin=0), 
+                                          vars, start=TRUE)
+    
+    # UCED wide BSP10
+    trace.all.bsp10.uced.wide <- getLogFileSubset(readLog(paste0(params$inputpath, "all_01_02_23_alignment_norec.gtrgi.bsp10.uced.wide.combined10_5E5.log"), burnin=0), 
+                                          vars, start=TRUE)
+    
+    # UCLD narrow BSP10
+    trace.all.bsp10.ucld.narrow <- getLogFileSubset(readLog(paste0(params$inputpath, "all_01_02_23_alignment_norec.gtrgi.bsp10.ucld.narrow.combined10_5E5.log"), burnin=0), 
+                                          vars, start=TRUE)
+    
+    # UCLD wide BSP10
+    trace.all.bsp10.ucld.wide <- getLogFileSubset(readLog(paste0(params$inputpath, "all_01_02_23_alignment_norec.gtrgi.bsp10.ucld.wide.combined10_5E5.log"), burnin=0), 
+                                          vars, start=TRUE)
+    
+    
+    # UCED narrow const
+    trace.all.const.uced.narrow <- getLogFileSubset(readLog(paste0(params$inputpath, "all_01_02_23_alignment_norec.gtrgi.const.uced.narrow.combined10_5E5.log"), burnin=0), 
+                                          vars, start=TRUE)
+    
+    # UCED narrow exp
+    trace.all.exp.uced.narrow <- getLogFileSubset(readLog(paste0(params$inputpath, "all_01_02_23_alignment_norec.gtrgi.exp.uced.narrow.combined10_5E5.log"), burnin=0), 
+                                          vars, start=TRUE)
+    
+    trace.all.bsp10.uced.narrow[, "TreeHeight"] <- params$mostrecent - trace.all.bsp10.uced.narrow[, "TreeHeight"]
+    trace.all.bsp10.uced.wide[, "TreeHeight"]   <- params$mostrecent - trace.all.bsp10.uced.wide[, "TreeHeight"]
+    trace.all.bsp10.ucld.narrow[, "TreeHeight"] <- params$mostrecent - trace.all.bsp10.ucld.narrow[, "TreeHeight"]
+    trace.all.bsp10.ucld.wide[, "TreeHeight"]   <- params$mostrecent - trace.all.bsp10.ucld.wide[, "TreeHeight"]
+    trace.all.const.uced.narrow[, "TreeHeight"] <- params$mostrecent - trace.all.const.uced.narrow[, "TreeHeight"]
+    trace.all.exp.uced.narrow[, "TreeHeight"]   <- params$mostrecent - trace.all.exp.uced.narrow[, "TreeHeight"]
+
+    
+```   
+
+# Clock model comparison
+
+```{r cladeTMRCA-clock-comparison, results='asis', eval=TRUE, fig.width=12, fig.height=10, fig.cap="Divergence dates (all)"}
+
+getClockCladeTMRCAs <- function(mrca) {
+  
+  model <- paste(nameMap[[mrca]], "tMRCA")
+  
+  cladeTMRCAs <- bind_rows(tibble("{model}" := rep("UCED\n(narrow prior)", nrow(trace.all.bsp10.uced.narrow)), "Date (CE)" = trace.all.bsp10.uced.narrow[, mrca]),
+                           tibble("{model}" := rep("UCED\n(wide prior)",   nrow(trace.all.bsp10.uced.wide)),   "Date (CE)" = trace.all.bsp10.uced.wide[, mrca]),
+                           tibble("{model}" := rep("UCLD\n(narrow prior)", nrow(trace.all.bsp10.ucld.narrow)), "Date (CE)" = trace.all.bsp10.ucld.narrow[, mrca]),
+                           tibble("{model}" := rep("UCLD\n(wide prior)",   nrow(trace.all.bsp10.ucld.wide)),   "Date (CE)" = trace.all.bsp10.ucld.wide[, mrca]))
+  cladeTMRCAs[[model]] <- ordered(cladeTMRCAs[[model]], levels = c("UCED\n(narrow prior)", "UCLD\n(narrow prior)", "UCED\n(wide prior)", "UCLD\n(wide prior)"))
+  cladeTMRCAs$`Subspecies (lineage) tMRCA` <- nameMap[[mrca]]
+
+  
+  return(cladeTMRCAs)
+}
+
+
+mrca.TPE <- "mrca.date.forward.TPE."
+TPE      <- plotCladeTMRCAs(getClockCladeTMRCAs(mrca.TPE), mrca = mrca.TPE, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.TPA <- "mrca.date.forward.TPA."
+TPA      <- plotCladeTMRCAs(getClockCladeTMRCAs(mrca.TPA), mrca = mrca.TPA, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.TEN <- "mrca.date.forward.TEN."
+TEN      <- plotCladeTMRCAs(getClockCladeTMRCAs(mrca.TEN), mrca = mrca.TEN, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.SS14 <- "mrca.date.forward.SS14."
+SS14      <- plotCladeTMRCAs(getClockCladeTMRCAs(mrca.SS14), mrca = mrca.SS14, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.nichols <- "mrca.date.forward.NICHOLS."
+nichols      <- plotCladeTMRCAs(getClockCladeTMRCAs(mrca.nichols), mrca = mrca.nichols, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.TP <- "TreeHeight"
+TP      <- plotCladeTMRCAs(getClockCladeTMRCAs(mrca.TP), mrca = mrca.TP, nameMap = nameMap, cladeCols = cladeCols, xlim=c(-16000,2000), breaks=3000)
+
+mrca.SS14_W <- "mrca.date.forward.SS14_W."
+SS14_W      <- plotCladeTMRCAs(getClockCladeTMRCAs(mrca.SS14_W), mrca = mrca.SS14_W, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.TPETEN <- "mrca.date.forward.TPETEN."
+TPETEN      <- plotCladeTMRCAs(getClockCladeTMRCAs(mrca.TPETEN), mrca = mrca.TPETEN, nameMap = nameMap, cladeCols = cladeCols)
+
+
+
+plot_grid(TPE, TPA, SS14, nichols, TEN, TP, labels=letters[1:6], nrow=3)
+
+```
+
+\clearpage
+
+# Tree model comparison
+
+```{r cladeTMRCA-tree-comparison, results='asis', eval=TRUE, fig.width=12, fig.height=10, fig.cap="Divergence dates (all)"}
+
+getTreeCladeTMRCAs <- function(mrca) {
+  
+  model <- paste(nameMap[[mrca]], "tMRCA")
+  
+  cladeTMRCAs <- bind_rows(tibble("{model}" := rep("Bayesian\nskyline\nplot", nrow(trace.all.bsp10.uced.narrow)), "Date (CE)" = trace.all.bsp10.uced.narrow[, mrca]),
+                         tibble("{model}" := rep("Constant\nsize\ncoalescent",   nrow(trace.all.const.uced.narrow)),   "Date (CE)" = trace.all.const.uced.narrow[, mrca]),
+                         tibble("{model}" := rep("Exponential\ngrowth\ncoalescent",   nrow(trace.all.exp.uced.narrow)),   "Date (CE)" = trace.all.bsp10.uced.narrow[, mrca]))
+  cladeTMRCAs$`Subspecies (lineage) tMRCA` <- nameMap[[mrca]]
+
+  
+  return(cladeTMRCAs)
+}
+
+
+mrca.TPE <- "mrca.date.forward.TPE."
+TPE      <- plotCladeTMRCAs(getTreeCladeTMRCAs(mrca.TPE), mrca = mrca.TPE, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.TPA <- "mrca.date.forward.TPA."
+TPA      <- plotCladeTMRCAs(getTreeCladeTMRCAs(mrca.TPA), mrca = mrca.TPA, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.TEN <- "mrca.date.forward.TEN."
+TEN      <- plotCladeTMRCAs(getTreeCladeTMRCAs(mrca.TEN), mrca = mrca.TEN, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.SS14 <- "mrca.date.forward.SS14."
+SS14      <- plotCladeTMRCAs(getTreeCladeTMRCAs(mrca.SS14), mrca = mrca.SS14, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.nichols <- "mrca.date.forward.NICHOLS."
+nichols      <- plotCladeTMRCAs(getTreeCladeTMRCAs(mrca.nichols), mrca = mrca.nichols, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.TP <- "TreeHeight"
+TP      <- plotCladeTMRCAs(getTreeCladeTMRCAs(mrca.TP), mrca = mrca.TP, nameMap = nameMap, cladeCols = cladeCols, xlim=c(-16000,2000), breaks=3000)
+
+mrca.SS14_W <- "mrca.date.forward.SS14_W."
+SS14_W      <- plotCladeTMRCAs(getTreeCladeTMRCAs(mrca.SS14_W), mrca = mrca.SS14_W, nameMap = nameMap, cladeCols = cladeCols)
+
+mrca.TPETEN <- "mrca.date.forward.TPETEN."
+TPETEN      <- plotCladeTMRCAs(getTreeCladeTMRCAs(mrca.TPETEN), mrca = mrca.TPETEN, nameMap = nameMap, cladeCols = cladeCols)
+
+
+plot_grid(TPE, TPA, SS14, nichols, TEN, TP, labels=letters[1:6], nrow=3)
+
+
+```
+
+\clearpage
+
+# Session info
+
+```{r sessionInfo, results='markup'}
+    sessionInfo()
+```

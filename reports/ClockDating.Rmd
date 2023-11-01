@@ -1,0 +1,620 @@
+---
+title: "Molecular clock dating"
+subtitle: "Redefining the treponemal history through pre-Columbian genomes from Brazil"
+author: "Louis du Plessis"
+date: '`r format(Sys.time(), "Last modified: %d %b %Y")`'
+output: 
+  pdf_document:
+      latex_engine: xelatex
+      toc: true
+      toc_depth: 3
+      number_sections: true
+      keep_tex: false
+      fig_crop: false
+layout: page
+editor_options: 
+  chunk_output_type: inline
+params: 
+  metadata   : "../data/Genome_metadata_information.csv"
+  inputpath  : "../results/beast2/output/"
+  outputpath : "../results/beast2/"
+  device     : "cairo_pdf"
+---
+
+
+```{r setup, include=FALSE}
+ 
+    # Use dev = "cairo_pdf" to include unicode fonts!
+    library(coda)
+    library(beastio)
+
+    library(tidyverse)
+    library(ggridges)
+    library(treeio)
+    library(ggtree)
+    
+    source("../scripts/treeutils.R")
+    
+    figpath   <- paste0(params$outputpath, "figures/") 
+    cachepath <- paste0(params$outputpath, "cache/")
+    dir.create(figpath, recursive = TRUE, showWarnings = FALSE)
+    knitr::opts_chunk$set(tidy=FALSE, cache=FALSE, cache.path = cachepath, 
+                          dev=params$device, fig.path=figpath, dpi=300,
+                          message=FALSE, error=TRUE, warning=FALSE, echo=FALSE)
+    
+    nameMap <- list("mrca.date.forward.SS14_W."  = "TPA (SS14-\u03c9)", #expression("SS14-"~omega),
+                    "mrca.date.forward.SS14."    = "TPA (SS14)",
+                    "mrca.date.forward.NICHOLS." = "TPA (Nichols)",
+                    "mrca.date.forward.TPA."     = "TPA",
+                    "mrca.date.forward.TPE."     = "TPE",
+                    "mrca.date.forward.TEN."     = "TEN")
+                   # "mrca.date.forward.TPETEN."  = "TPE+TEN")
+    
+    cladeCols  <- list("TPA (SS14-\u03c9)"  = "#E6AE9AC0", 
+                       "TPA (SS14)"         = "#B3CFCCC0",
+                       "TPA"                = "#80AEA9C0",
+                       "TPA (Nichols)"      = "#5098AFC0",    #8FBECD
+                       "TPE"                = "#F5E5BCC0",
+                       "TEN"                = "#CEB4A1C0")
+    
+    metadata <- read.csv(params$metadata)
+    
+```
+
+```{r functions}
+
+formatHPD <- function(HPD, digits=2) {
+  HPD     <- round(HPD, digits)
+  result  <-  cbind(HPD[, "med"], 
+                    apply(HPD, 1, function(x) paste0("(", x["lower"], " - ", x["upper"], ")")))
+  colnames(result) <- c("Median", "(95% HPD)")
+  return(result)
+}
+
+#' Silly wrapper so ggridges can plot HPD lines instead of quantiles
+hpdWrapper     <- function(x, probs) { as.numeric(coda::HPDinterval(as.mcmc(x), diff(probs))) }
+
+
+mapDateToTree <- function(tree, mostrecent, date) {
+  return(max(tree@data$height) - mostrecent + date)
+}
+
+
+plotMCCTree <- function(tree, metadata, 
+                        alignIds = TRUE, linewidth = 0.5, labelSize = 3, barWidth = 1.6, xticks = seq(-15000, 2100, by=1000), xticksminor = NULL, 
+                        plotStart = NA, plotEnd = NA, marginPadding = 1.25,
+                        highlight = c(), plotPosterior = TRUE,
+                        cladeCols = list(), cladeMap = list(), collapse = c()) {
+
+    # Processing
+  
+    remove   <- setdiff(treemeta$name, tree@phylo$tip.label)
+    if (length(remove) > 0) {
+        treemeta <- treemeta[-which(treemeta$name %in% remove),]
+    }
+    
+    mrcas      <- sapply(unique(treemeta$clade), function(x) ape::getMRCA(tree@phylo, treemeta$name[treemeta$clade == x]))
+    tmrca      <- max(tree@data$height)
+    mostrecent <- max(treemeta$date)
+    if (is.na(plotStart)) {
+        plotStart <- tmrca - max(unlist(tree@data$height_0.95_HPD))
+    } else {
+        plotStart <- tmrca - mostrecent + plotStart
+    }
+    
+    if (is.na(plotEnd)) {
+        plotEnd <- tmrca*marginPadding
+    } else {
+        plotEnd <- tmrca - mostrecent + plotEnd
+    }
+    
+    # Add dates to tip labels
+    tiporder      <- match(treemeta$name, tree@phylo$tip.label)
+    treemeta$name <- tree@phylo$tip.label[tiporder] <- sapply(1:nrow(treemeta), function(i) formatDateRange(treemeta[i,]))
+    
+    
+    
+    # Plotting
+    
+    # Base tree
+    p <- ggtree(tree, ladderize=TRUE , right = TRUE, linewidth=linewidth, color="black") %<+% treemeta 
+    
+    # Collapse and label clades
+    if (length(collapse) > 0) {
+      for (clade in collapse) {
+        p <- p %>% scaleClade(node = mrcas[[clade]], scale = 0.1) 
+      }
+      for (clade in collapse) {
+          p <- p %>% collapse(node = mrcas[[clade]], "max", fill=cladeCols[[clade]], color="black", linewidth=0.5) 
+      }
+      for (clade in collapse) {
+        p <- p + geom_cladelab(node=mrcas[[clade]], label=cladeMap[[clade]], align=TRUE, fontsize=labelSize)
+      }
+    }
+    
+    # Node labels
+    #p <- p + geom_tiplab(size=labelSize, align=alignIds, hjust = -0.05, color="black", show.legend=FALSE) 
+    p <- p + geom_tiplab(aes(subset = (label %in% highlight)), size=labelSize, align=alignIds, hjust = -0.05, color="black", show.legend=FALSE, fontface="bold") 
+    p <- p + geom_tiplab(aes(subset = (!(label %in% highlight))), size=labelSize, align=alignIds, hjust = -0.05, color="black", show.legend=FALSE) 
+    
+    
+    # Posterior prob
+    if (plotPosterior) {
+        p <- p + geom_point2(aes(subset=!is.na(posterior) & posterior >= 0.8, fill="#B00168"), pch=21, color="#000000", size=2.5, show.legend = FALSE) +
+                 geom_text2(aes(subset=(!is.na(posterior) & posterior >= 0.8), label=round(posterior,2)), vjust=-0.5, hjust=1.25, size=0.8*labelSize, color="#B00168") 
+    }
+    
+    # Node bars
+    p <- p + geom_range(range="height_0.95_HPD", color="#4891DC", alpha=0.5, size=barWidth, center='height')
+    
+    # Time axis
+    if (is.null(xticksminor)) {
+        p <- p + theme_tree2(panel.grid.major.x = element_line(colour = "grey50", linewidth=0.15, linetype = "solid"), 
+                             axis.text.x = element_text(size=12, angle=45, hjust=1)) + 
+               scale_x_continuous(breaks = (tmrca - mostrecent + xticks), 
+                                  labels=function(x) x - tmrca + mostrecent, 
+                                  limits=c(plotStart,plotEnd))
+    } else {
+        p <- p + theme_tree2(panel.grid.major.x = element_line(colour = "grey50", linewidth=0.5,  linetype = "solid"),
+                             panel.grid.minor.x = element_line(colour = "grey50", linewidth=0.15, linetype = "solid"),
+                               axis.text.x = element_text(size=12, angle=45, hjust=1)) + 
+                 scale_x_continuous(breaks = (tmrca - mostrecent + xticks), minor_breaks = (tmrca - mostrecent + xticksminor),
+                                    labels=function(x) x - tmrca + mostrecent, 
+                                    limits=c(plotStart,plotEnd))
+      }
+    
+    return(p)
+
+}
+
+
+
+```
+
+
+```{r readlogfiles, cache=TRUE} 
+
+    vars <- c("TreeHeight|monophyletic|mrca|height|rate|clock|ucld")
+   
+    # UCED narrow
+    trace.all.uced.narrow <- getLogFileSubset(readLog(paste0(params$inputpath, "all_01_02_23_alignment_norec.gtrgi.bsp10.uced.narrow.combined10_5E5.log"), burnin=0), 
+                                          vars, start=TRUE)
+    trace.noZH1540.uced.narrow <- getLogFileSubset(readLog(paste0(params$inputpath, "noZH1540_01_02_23_alignment_norec.gtrgi.bsp10.uced.narrow.combined10_2E5.log"), burnin=0), 
+                                          vars, start=TRUE)
+```   
+
+
+# Divergence dates
+
+## ZH1540 included
+
+```{r cladeTMRCAs.all.uced.narrow, results='asis', eval=TRUE, fig.width=5, fig.height=3.5, fig.cap="Divergence dates (all)"}
+
+    cladeTMRCAs.all.uced.narrow  <- getLogFileSubset(trace.all.uced.narrow, "mrca", start = TRUE)
+    monophyletic.all.uced.narrow <- getLogFileSubset(trace.all.uced.narrow, "monophyletic", start = TRUE)
+    
+    ######################
+    # Table of clade ages
+    nameOrder                     <- match(names(nameMap), varnames(cladeTMRCAs.all.uced.narrow))
+    cladeTMRCAHPD.all.uced.narrow <- getHPDMedian(cladeTMRCAs.all.uced.narrow[, nameOrder])
+    monophylyProb.all.uced.narrow <- round(colSums(monophyletic.all.uced.narrow[, nameOrder])/niter(monophyletic.all.uced.narrow), 2)
+    
+    cladeRes              <- cbind(formatHPD(cladeTMRCAHPD.all.uced.narrow), monophylyProb.all.uced.narrow)
+    colnames(cladeRes)[3] <- "Pr(monophyletic)"
+    rownames(cladeRes)    <- sapply(rownames(cladeRes), function(x) nameMap[[x]])
+    
+    knitr::kable(cladeRes, digits = 2, align = 'r',
+                 caption = paste0("Posterior TMRCA estimates for clades (with ZH1540 included). The posterior probability that a clade is monophyletic is calculated as the proportion of posterior trees where the clade is monophyletic."))
+    
+    write.csv(cladeRes, file = paste0(figpath, "cladeTMRCAs.all.uced.narrow.csv"), quote=FALSE, row.names = TRUE)
+    
+    
+    
+    ##########################
+    # Clade densities joyplot
+    
+    # Create the data container as a tibble
+    z <- data.frame(cladeTMRCAs.all.uced.narrow)
+    #z$mrca.date.forward.TPETEN.      <- NULL
+    #z$mrca.date.forward.SS14_MODERN. <- NULL
+    #z$mrca.date.forward.TEN_MODERN.  <- NULL
+    tbl_cladeTMRCAs.all.uced.narrow <- pivot_longer(z, 
+                                                    cols = names(nameMap), 
+                                                    names_to = "Subspecies (lineage) tMRCA", 
+                                                    names_transform = function(x) sapply(x, function(y) nameMap[[y]]), 
+                                                    values_to = "Date (CE)", values_drop_na = TRUE)
+    tbl_cladeTMRCAs.all.uced.narrow$`Subspecies (lineage) tMRCA` <- ordered(tbl_cladeTMRCAs.all.uced.narrow$`Subspecies (lineage) tMRCA`, levels = rev(unname(unlist(nameMap))))
+
+    
+    ggplot(tbl_cladeTMRCAs.all.uced.narrow, 
+           aes(x = `Date (CE)`, y = `Subspecies (lineage) tMRCA`, fill = `Subspecies (lineage) tMRCA`)) + 
+          geom_density_ridges2(show.legend = FALSE,
+                              rel_min_height = 0.005, scale = 5, 
+                              quantile_lines = TRUE, quantiles = c(0.025, 0.975), quantile_fun = hpdWrapper) + 
+          scale_fill_manual(values = unlist(cladeCols)) + 
+          theme_ridges(grid = FALSE) + 
+          theme(panel.grid.major.y = element_blank() ,
+                panel.grid.major.x = element_line( size=0.15, color="grey50", linetype = "solid" ), 
+                axis.line.x = element_line( size=0.5, color="black")) +
+          scale_x_continuous(limits = c(-1500, 2020), breaks = seq(-1500, 2020, by = 500), oob = scales::oob_keep) + 
+          scale_y_discrete(expand = c(0, 0.5)) 
+
+``` 
+
+\clearpage
+
+## ZH1540 excluded
+
+```{r cladeTMRCAs.noZH1540.uced.narrow, results='asis', eval=TRUE, fig.width=5, fig.height=3.5, fig.cap="Divergence dates (noZH1540)"}
+
+cladeTMRCAs.noZH1540.uced.narrow  <- getLogFileSubset(trace.noZH1540.uced.narrow, "mrca", start = TRUE)
+monophyletic.noZH1540.uced.narrow <- getLogFileSubset(trace.noZH1540.uced.narrow, "monophyletic", start = TRUE)
+
+######################
+# Table of clade ages
+nameOrder                     <- match(names(nameMap), varnames(cladeTMRCAs.noZH1540.uced.narrow))
+cladeTMRCAHPD.noZH1540.uced.narrow <- getHPDMedian(cladeTMRCAs.noZH1540.uced.narrow[, nameOrder])
+monophylyProb.noZH1540.uced.narrow <- round(colSums(monophyletic.noZH1540.uced.narrow[, nameOrder])/niter(monophyletic.noZH1540.uced.narrow), 2)
+
+cladeRes              <- cbind(formatHPD(cladeTMRCAHPD.noZH1540.uced.narrow), monophylyProb.noZH1540.uced.narrow)
+colnames(cladeRes)[3] <- "Pr(monophyletic)"
+rownames(cladeRes)    <- sapply(rownames(cladeRes), function(x) nameMap[[x]])
+
+knitr::kable(cladeRes, digits = 2, align = 'r',
+             caption = paste0("Posterior TMRCA estimates for clades (with ZH1540 included). The posterior probability that a clade is monophyletic is calculated as the proportion of posterior trees where the clade is monophyletic."))
+
+write.csv(cladeRes, file = paste0(figpath, "cladeTMRCAs.noZH1540.uced.narrow.csv"), quote=FALSE, row.names = TRUE)
+
+
+
+##########################
+# Clade densities joyplot
+
+# Create the data container as a tibble
+z <- data.frame(cladeTMRCAs.noZH1540.uced.narrow)
+#z$mrca.date.forward.TPETEN.      <- NULL
+#z$mrca.date.forward.SS14_MODERN. <- NULL
+#z$mrca.date.forward.TEN_MODERN.  <- NULL
+tbl_cladeTMRCAs.noZH1540.uced.narrow <- pivot_longer(z, 
+                                                cols = names(nameMap), 
+                                                names_to = "Subspecies (lineage) tMRCA", 
+                                                names_transform = function(x) sapply(x, function(y) nameMap[[y]]), 
+                                                values_to = "Date (CE)", values_drop_na = TRUE)
+tbl_cladeTMRCAs.noZH1540.uced.narrow$`Subspecies (lineage) tMRCA` <- ordered(tbl_cladeTMRCAs.noZH1540.uced.narrow$`Subspecies (lineage) tMRCA`, levels = rev(unname(unlist(nameMap))))
+
+
+ggplot(tbl_cladeTMRCAs.noZH1540.uced.narrow, 
+       aes(x = `Date (CE)`, y = `Subspecies (lineage) tMRCA`, fill = `Subspecies (lineage) tMRCA`)) + 
+  geom_density_ridges2(show.legend = FALSE,
+                       rel_min_height = 0.005, scale = 5, 
+                       quantile_lines = TRUE, quantiles = c(0.025, 0.975), quantile_fun = hpdWrapper) + 
+  scale_fill_manual(values = unlist(cladeCols)) + 
+  theme_ridges(grid = FALSE) + 
+  theme(panel.grid.major.y = element_blank() ,
+        panel.grid.major.x = element_line( size=0.15, color="grey50", linetype = "solid" ), 
+        axis.line.x = element_line( size=0.5, color="black")) +
+  scale_x_continuous(limits = c(-1500, 2020), breaks = seq(-1500, 2020, by = 500), oob = scales::oob_keep) + 
+  scale_y_discrete(expand = c(0, 0.5)) 
+
+``` 
+
+\clearpage
+
+## Combined
+
+
+```{r cladeTMRCAs.uced.narrow.resized, results='asis', eval=TRUE, fig.width=3.5, fig.height=3, fig.cap="Divergence dates (combined)"}
+
+    cladeCols  <- list("TPA (SS14-\u03c9)"  = "#E6AE9A", 
+                   "TPA (SS14)"         = "#B3CFCC",
+                   "TPA"                = "#80AEA9",
+                   "TPA (Nichols)"      = "#5098AF",    #8FBECD
+                   "TPE"                = "#F5E5BC",
+                   "TEN"                = "#CEB4A1")
+    cladeFills  <- list("TPA (SS14-\u03c9)"  = "#E6AE9AA0", 
+                   "TPA (SS14)"         = "#B3CFCCA0",
+                   "TPA"                = "#80AEA9A0",
+                   "TPA (Nichols)"      = "#5098AFA0",    #8FBECD
+                   "TPE"                = "#F5E5BCA0",
+                   "TEN"                = "#CEB4A1A0")
+
+    ggplot(tbl_cladeTMRCAs.noZH1540.uced.narrow, aes(x = `Date (CE)`, y = `Subspecies (lineage) tMRCA`)) + 
+      #geom_density_ridges(rel_min_height = 0.005, scale=3, fill="#000000", col="#ffffff", alpha=0.2) + 
+      geom_density_ridges2(rel_min_height = 0.005, scale=3.5, fill="#000000", col="#000000a0", alpha=0.2,
+                           quantile_lines = TRUE, quantiles = c(0.025, 0.975), quantile_fun = hpdWrapper) + 
+      geom_density_ridges2(data = tbl_cladeTMRCAs.all.uced.narrow, mapping = aes(x = `Date (CE)`, y = `Subspecies (lineage) tMRCA`, 
+                           fill = `Subspecies (lineage) tMRCA`), 
+                           show.legend = FALSE,
+                           rel_min_height = 0.005, scale = 3.5,
+                           quantile_lines = TRUE, quantiles = c(0.025, 0.975), quantile_fun = hpdWrapper) + 
+      scale_fill_manual(values = unlist(cladeFills)) +
+      scale_color_manual(values = unlist(cladeCols)) +
+      
+      theme_ridges(grid = FALSE, font_size = 12) + 
+      theme(text = element_text(size = 14),
+            panel.grid.major.y = element_blank() ,
+            panel.grid.major.x = element_line( size=0.15, color="grey50", linetype = "solid" ), 
+            axis.line.x = element_line(size=0.5, color="black"), 
+            axis.text.x = element_text(angle = 45, vjust = 0.5), axis.text.y = element_text(angle = 45)) +
+      scale_x_continuous(limits = c(-1500, 2020), breaks = seq(-1500, 2020, by = 500), oob = scales::oob_keep) + 
+      scale_y_discrete(expand = c(0, 0.5, 0.8, 0)) 
+
+
+
+```
+
+\clearpage
+
+# MCC trees 
+
+## ZH1540 included
+
+```{r mcctree.all.uced.narrow_collapsed, fig.width=4, fig.height=4, eval=TRUE}
+
+    cladeCols  <- list("SS14-w"    = "#E6AE9A", 
+                       "SS14"      = "#B3CFCC",
+                       "SS14-aDNA" = "#80AEA9",
+                       "Nichols"   = "#5098AF",    #8FBECD
+                       "TPA"       = "#80AEA9",
+                       "TPE"       = "#F5E5BC",
+                       "TEN"       = "#CEB4A1")
+
+    cladeMap   <- list("SS14-w"    = "TPA (SS14-\u03c9)", 
+                       "SS14"      = "TPA (SS14)",
+                       "SS14-aDNA" = "TPA (SS14 ancient)",
+                       "Nichols"   = "TPA (Nichols)",   
+                       "TPE"       = "TPE",
+                       "TEN"       = "TEN")
+    
+    
+    
+    # Setup tree metadata
+    treemeta <- data.frame(name  = metadata$Taxon, 
+                           clade = metadata$Subspecies,
+                           date_lower = as.numeric(sapply(strsplit(metadata$Year,'-'), function(x) x[1])), 
+                           date_upper = as.numeric(sapply(strsplit(metadata$Year,'-'), function(x) x[length(x)]))) 
+    treemeta$date <- 0.5*(treemeta$date_upper + treemeta$date_lower)
+    treemeta$clade[treemeta$clade == "SS14" & treemeta$date < 1900] <- "SS14-aDNA"
+    
+    
+    
+    
+    # Read tree and match metadata to tree
+    tree.all.uced.narrow <- read.beast(paste0(params$inputpath,
+                                              "all_01_02_23_alignment_norec.gtrgi.bsp10.uced.narrow.combined10_5E5.MCC.tree"))
+    tree.all.uced.narrow@phylo$tip.label <- getSeqParts(tree.all.uced.narrow@phylo$tip.label, 1)
+    
+    # Need global highlight because of ggplot's non-standard evaluation, not sure how to force evaluation yet
+    highlight <- c("ZH1540 (247-363)")
+    treeplot <- plotMCCTree(tree.all.uced.narrow, treemeta, cladeCols=cladeCols, cladeMap=cladeMap, collapse=c("TEN", "TPE", "Nichols", "SS14-aDNA"), 
+                            linewidth = 0.75, xticks=seq(-12000,2000,by=2000), marginPadding = 1.2, plotStart = -12000)
+    
+    treeplot + geom_vline(xintercept = mapDateToTree(tree.all.uced.narrow, max(treemeta$date), -1000), linetype = "dashed")
+
+
+```
+
+
+```{r mcctree.all.uced.narrow_collapsed.resized, fig.width=6, fig.height=7, eval=TRUE}
+
+    treeplot <- plotMCCTree(tree.all.uced.narrow, treemeta, cladeCols=cladeCols, cladeMap=cladeMap, collapse=c("TPE", "Nichols", "SS14"), 
+                            marginPadding = 1.65, labelSize = 4.5, barWidth = 2)
+
+    treeplot
+
+    treemeta$clade[treemeta$clade == "SS14"] <- "SS14-w"
+    treemeta$clade[treemeta$name %in% c("MexicoA", "MD18Be", "MD06B")] <- "SS14"
+
+    treeplot <- plotMCCTree(tree.all.uced.narrow, treemeta, cladeCols=cladeCols, cladeMap=cladeMap, collapse=c("TPE", "Nichols", "SS14-w"), 
+                            marginPadding = 1.65, labelSize = 4.5, barWidth = 2)
+
+    treeplot
+```
+
+```{r mcctree.all.uced.narrow_collapsed_small, fig.width=3, fig.height=1.5, eval=TRUE}
+
+    treemeta$clade[treemeta$name == "ZH1540"] <- "TEN-aDNA"
+
+    treeplot <- plotMCCTree(tree.all.uced.narrow, treemeta, cladeCols=cladeCols, cladeMap=cladeMap, collapse=c("TEN", "TPE", "Nichols", "SS14-aDNA"), 
+                            linewidth = 0.5, xticks=seq(-12000,2000,by=2000), plotEnd = 3000, plotStart = -12500, plotPosterior=FALSE)
+    
+    treeplot
+```
+
+
+```{r mcctree.all.uced.narrow, fig.width=12, fig.height=16, eval=TRUE}
+
+    treeplot <- plotMCCTree(tree.all.uced.narrow, treemeta, highlight = c("ZH1540 (247-363)"), marginPadding = 1.75)
+
+    # A bit hacky...
+    remove   <- setdiff(treemeta$name, tree.all.uced.narrow@phylo$tip.label)
+    if (length(remove) > 0) {
+        treemeta2 <- treemeta[-which(treemeta$name %in% remove),]
+    }
+    mrcas      <- sapply(unique(treemeta2$clade), function(x) ape::getMRCA(tree.all.uced.narrow@phylo, treemeta2$name[treemeta2$clade == x]))
+    mrcas$TPA  <- ape::getMRCA(tree.all.uced.narrow@phylo, treemeta2$name[treemeta2$clade == "SS14" | treemeta2$clade == "Nichols"])
+    mrcas$SS14 <- ape::getMRCA(tree.all.uced.narrow@phylo, treemeta2$name[treemeta2$clade == "SS14" | treemeta2$clade == "SS14-aDNA"])
+    #mrcas$`SS14-w` <- ape::getMRCA(tree.all.uced.narrow@phylo, setdiff(treemeta2$name[treemeta$clade == "SS14"], c("MexicoA", "MD18Be", "MD06B")))
+    mrcas$`SS14-w` <- ape::getMRCA(tree.all.uced.narrow@phylo, treemeta2$name[treemeta2$clade == "SS14-w"])
+    
+
+    treeplot <- treeplot + geom_cladelab(node=mrcas[["TPE"]], label=cladeMap[["TPE"]], align=TRUE, 
+                                         fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                         barcolour = cladeCols$TPE, barsize=1.6, offset=4600) +
+    
+                           geom_cladelab(node=mrcas[["TEN"]], label=cladeMap[["TEN"]], align=TRUE, 
+                                         fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                         barcolour = cladeCols$TEN, barsize=1.6, offset=4600) +
+      
+                           geom_cladelab(node=mrcas[["Nichols"]], label="Nichols", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                                               barcolour = cladeCols$Nichols, barsize=1.6, offset=3800) + 
+                           geom_cladelab(node=mrcas[["SS14-w"]], label="SS14-\u03c9", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                                               barcolour = cladeCols$`SS14-w`, barsize=1.6, offset=3000) + 
+                           geom_cladelab(node=mrcas[["SS14"]], label="SS14", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                                               barcolour = cladeCols$SS14, barsize=1.6, offset=3800) +
+      
+                           geom_cladelab(node=mrcas[["TPA"]], label="TPA", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                                               barcolour = cladeCols$TPA, barsize=1.6, offset=4600) 
+
+    treeplot
+
+
+```
+
+
+```{r mcctree.all.uced.narrow.zoom, fig.width=12, fig.height=16}
+  
+    treeplot <- plotMCCTree(tree.all.uced.narrow, treemeta, highlight = c("ZH1540 (247-363)", "W86 (1621-1670)"), 
+                            linewidth = 0.75, marginPadding = 1.15, 
+                            xticks=seq(-15000, 2000, by=500), xticksminor=seq(-15000, 2000, by=100), plotStart = -800)
+
+    treeplot <- treeplot + geom_cladelab(node=mrcas[["TPE"]], label=cladeMap[["TPE"]], align=TRUE, 
+                                         fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                         barcolour = cladeCols$TPE, barsize=1.6, offset=800) +
+    
+                           geom_cladelab(node=mrcas[["TEN"]], label=cladeMap[["TEN"]], align=TRUE, 
+                                         fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                         barcolour = cladeCols$TEN, barsize=1.6, offset=800) +
+      
+                           geom_cladelab(node=mrcas[["Nichols"]], label="Nichols", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                                               barcolour = cladeCols$Nichols, barsize=1.6, offset=650) + 
+                           geom_cladelab(node=mrcas[["SS14-w"]], label="SS14-\u03c9", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                                               barcolour = cladeCols$`SS14-w`, barsize=1.6, offset=500) + 
+                           geom_cladelab(node=mrcas[["SS14"]], label="SS14", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                                               barcolour = cladeCols$SS14, barsize=1.6, offset=650) +
+      
+                           geom_cladelab(node=mrcas[["TPA"]], label="TPA", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                                               barcolour = cladeCols$TPA, barsize=1.6, offset=800) 
+
+    treeplot 
+
+```
+
+
+\clearpage
+
+## ZH1540 excluded
+
+```{r mcctree.noZH1540.uced.narrow_collapsed, fig.width=4, fig.height=4, eval=TRUE}
+
+    # Read tree and match metadata to tree
+    tree.noZH1540.uced.narrow <- read.beast(paste0(params$inputpath,
+                                              "noZH1540_01_02_23_alignment_norec.gtrgi.bsp10.uced.narrow.combined10_2E5.MCC.tree"))
+    tree.noZH1540.uced.narrow@phylo$tip.label <- getSeqParts(tree.noZH1540.uced.narrow@phylo$tip.label, 1)
+    
+    # Need global highlight because of ggplot's non-standard evaluation, not sure how to force evaluation yet
+    #highlight <- c("ZH1540 (247-363)")
+    treeplot <- plotMCCTree(tree.noZH1540.uced.narrow, treemeta, cladeCols=cladeCols, cladeMap=cladeMap, collapse=c("TEN", "TPE", "Nichols", "SS14-aDNA"), 
+                            linewidth = 0.75, xticks=seq(-12000,2000,by=2000), marginPadding = 1.2, plotStart = -12000)
+    
+    treeplot + geom_vline(xintercept = mapDateToTree(tree.noZH1540.uced.narrow, max(treemeta$date), -1000), linetype = "dashed")
+
+
+```
+
+```{r mcctree.noZH1540.uced.narrow_collapsed_small, fig.width=3, fig.height=1.5, eval=TRUE}
+
+    treeplot <- plotMCCTree(tree.noZH1540.uced.narrow, treemeta, cladeCols=cladeCols, cladeMap=cladeMap, collapse=c("TEN", "TPE", "Nichols", "SS14-aDNA"), 
+                            linewidth = 0.5, xticks=seq(-12000,2000,by=2000), plotEnd = 3000, plotStart = -12500, plotPosterior=FALSE)
+    
+    treeplot
+```
+
+```{r mcctree.noZH1540.uced.narrow, fig.width=12, fig.height=16, eval=TRUE}
+
+
+    treeplot <- plotMCCTree(tree.noZH1540.uced.narrow, treemeta, marginPadding = 1.75)
+
+    # A bit hacky...
+    remove   <- setdiff(treemeta$name, tree.noZH1540.uced.narrow@phylo$tip.label)
+    if (length(remove) > 0) {
+        treemeta2 <- treemeta[-which(treemeta$name %in% remove),]
+    }
+    mrcas      <- sapply(unique(treemeta2$clade), function(x) ape::getMRCA(tree.noZH1540.uced.narrow@phylo, treemeta2$name[treemeta2$clade == x]))
+    mrcas$TPA  <- ape::getMRCA(tree.noZH1540.uced.narrow@phylo, treemeta2$name[treemeta2$clade == "SS14" | treemeta2$clade == "Nichols"])
+    mrcas$SS14 <- ape::getMRCA(tree.noZH1540.uced.narrow@phylo, treemeta2$name[treemeta2$clade == "SS14" | treemeta2$clade == "SS14-aDNA"])
+    #mrcas$`SS14-w` <- ape::getMRCA(tree.noZH1540.uced.narrow@phylo, setdiff(treemeta2$name[treemeta$clade == "SS14"], c("MexicoA", "MD18Be", "MD06B")))
+    mrcas$`SS14-w` <- ape::getMRCA(tree.noZH1540.uced.narrow@phylo, treemeta2$name[treemeta2$clade == "SS14-w"])
+    
+
+    treeplot <- treeplot + geom_cladelab(node=mrcas[["TPE"]], label=cladeMap[["TPE"]], align=TRUE, 
+                                         fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                         barcolour = cladeCols$TPE, barsize=1.6, offset=4600) +
+    
+                           geom_cladelab(node=mrcas[["TEN"]], label=cladeMap[["TEN"]], align=TRUE, 
+                                         fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                         barcolour = cladeCols$TEN, barsize=1.6, offset=4600) +
+      
+                           geom_cladelab(node=mrcas[["Nichols"]], label="Nichols", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                                               barcolour = cladeCols$Nichols, barsize=1.6, offset=3800) + 
+                           geom_cladelab(node=mrcas[["SS14-w"]], label="SS14-\u03c9", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                                               barcolour = cladeCols$`SS14-w`, barsize=1.6, offset=3000) + 
+                           geom_cladelab(node=mrcas[["SS14"]], label="SS14", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                                               barcolour = cladeCols$SS14, barsize=1.6, offset=3800) +
+      
+                           geom_cladelab(node=mrcas[["TPA"]], label="TPA", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=200, angle=90,
+                                                               barcolour = cladeCols$TPA, barsize=1.6, offset=4600) 
+
+    treeplot
+
+
+```
+
+
+
+
+```{r mcctree.noZH1540.uced.narrow.zoom, fig.width=12, fig.height=16}
+  
+    treeplot <- plotMCCTree(tree.noZH1540.uced.narrow, treemeta, highlight = c("ZH1540 (247-363)", "W86 (1621-1670)"), 
+                            linewidth = 0.75, marginPadding = 1.2, 
+                            xticks=seq(-15000, 2000, by=500), xticksminor=seq(-15000, 2000, by=100), plotStart = -800)
+
+    treeplot <- treeplot + geom_cladelab(node=mrcas[["TPE"]], label=cladeMap[["TPE"]], align=TRUE, 
+                                         fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                         barcolour = cladeCols$TPE, barsize=1.6, offset=800) +
+    
+                           geom_cladelab(node=mrcas[["TEN"]], label=cladeMap[["TEN"]], align=TRUE, 
+                                         fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                         barcolour = cladeCols$TEN, barsize=1.6, offset=800) +
+      
+                           geom_cladelab(node=mrcas[["Nichols"]], label="Nichols", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                                               barcolour = cladeCols$Nichols, barsize=1.6, offset=650) + 
+                           geom_cladelab(node=mrcas[["SS14-w"]], label="SS14-\u03c9", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                                               barcolour = cladeCols$`SS14-w`, barsize=1.6, offset=500) + 
+                           geom_cladelab(node=mrcas[["SS14"]], label="SS14", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                                               barcolour = cladeCols$SS14, barsize=1.6, offset=650) +
+      
+                           geom_cladelab(node=mrcas[["TPA"]], label="TPA", align=TRUE, 
+                                                               fontsize=3.5, horizontal=FALSE, offset.text=15, angle=90,
+                                                               barcolour = cladeCols$TPA, barsize=1.6, offset=800) + 
+  
+      # Annotate 95% HPD of TPE/TEN split, since ggtree doesn't plot it here
+      geom_vline(xintercept = mapDateToTree(tree.noZH1540.uced.narrow, max(treemeta$date), max(treemeta$date)-895.5125), linetype = "dashed")
+
+    treeplot 
+    
+
+```
+
+\clearpage
+
+# Session info
+
+```{r sessionInfo, results='markup'}
+    sessionInfo()
+```

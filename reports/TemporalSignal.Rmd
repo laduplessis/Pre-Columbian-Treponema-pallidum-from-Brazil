@@ -1,0 +1,322 @@
+---
+title: "Temporal signal from root-to-tip regression"
+subtitle: "Redefining the treponemal history through pre-Columbian genomes from Brazil"
+author: "Louis du Plessis"
+date: '`r format(Sys.time(), "Last modified: %d %b %Y")`'
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    fig_crop: false
+    number_sections: true
+params: 
+  treefile     : "../results/ml_trees/alignment_norec.treefile"
+  treeno16S23S : "../results/ml_trees/alignment_norec_no16S23S.treefile"
+  metadata     : "../data/Genome_metadata_information.csv"
+  outputpath   : "../results/temporal_signal/"
+  device       : "pdf"
+---
+
+```{r rsetup, include=FALSE}
+  
+    library(cowplot)
+    library(treedataverse)
+    source("../scripts/datingutils.R")
+
+    dir.create(params$outputpath, showWarnings = FALSE, recursive = TRUE)
+    
+    knitr::opts_chunk$set(tidy=FALSE, cache=FALSE,
+                          dev=params$device, fig.path=params$outputpath, dpi=300,
+                          message=FALSE, error=TRUE, warning=FALSE, echo=FALSE)
+    
+    # Load metadata and tree
+    metadata_raw <- read.csv(params$metadata)
+    metadata_raw$passaged <- metadata_raw$Source %in% c("rabbit inoculation", 
+                                                        "rabbit passage", 
+                                                        "mucous patches and rabbit innoculation", 
+                                                        "from a papillomatous lesion and inoculated into hamsters, and later propagated in New Zealand White rabbits",
+                                                        "first inoculated in Syrian Golden hamsters, later several serial passages in rabbits", 
+                                                        "rabbit passage (highly passaged)", 
+                                                        "rabbit passage (low)")
+
+    
+    metadata <- data.frame(name     = metadata_raw$Taxon, 
+                           year     = metadata_raw$Year, 
+                           clade    = metadata_raw$Subspecies, 
+                           passaged = metadata_raw$passaged)
+    metadata$clade <- as.factor(metadata$clade)
+    metadata$year_lower <- as.numeric(sapply(1:nrow(metadata), function(x) strsplit(metadata$year, "-")[[x]][1]))
+    metadata$year_upper <- as.numeric(sapply(1:nrow(metadata), function(x) strsplit(metadata$year, "-")[[x]][2]))
+    metadata$year_upper[is.na(metadata$year_upper)] <- metadata$year_lower[is.na(metadata$year_upper)]
+    metadata$year_mean <- 0.5*(metadata$year_upper + metadata$year_lower)
+    metadata$type <- "Clinical"
+    metadata$type[which(metadata$passaged)] <- "Passaged"
+    metadata$type[which(metadata$year_mean < 1900)] <- "Ancient"
+
+    tree <- phytools::midpoint_root(treeio::read.tree(params$treefile))
+    tree$tip.label <- gsub("_real", "", tree$tip.label)
+    tree$tip.label <- gsub("SJ003", "SJN003", tree$tip.label)
+    tree$tip.label <- gsub("'", "", tree$tip.label)
+
+    treeno16S23S <- phytools::midpoint_root(treeio::read.tree(params$treeno16S23S))
+    treeno16S23S$tip.label <- gsub("_real", "", treeno16S23S$tip.label)
+    treeno16S23S$tip.label <- gsub("SJ003", "SJN003", treeno16S23S$tip.label)
+    treeno16S23S$tip.label <- gsub("'", "", treeno16S23S$tip.label)
+ 
+```
+
+
+```{r functions} 
+
+
+# Get best tree according to the RTT
+getBestTree <- function(tree, metadata, plot = FALSE) {
+  
+  rootNode <- getMRCA(tree, tree$tip.label)
+  
+  rootBranches <- which(tree$edge[, 1] == rootNode)
+  if (length(which(tree$edge[, 2] == rootNode)) > 0) {
+    stop("Something weird, root is not root!")
+  }
+  
+  steps         <- 100
+  rootBranchSum <- sum(tree$edge.length[rootBranches])
+  
+  edge1 <- seq(from = 0, to = rootBranchSum, length.out = steps)
+  edge2 <- rootBranchSum - edge1
+  
+  ttree   <- tree
+  cors    <- c()
+  bestcor <- 0
+  for (i in 1:steps) {
+    ttree$edge.length[rootBranches[1]] <- edge1[i]
+    ttree$edge.length[rootBranches[2]] <- edge2[i]
+    
+    mmeta <- addRootToTipDistance(ttree, metadata)
+    cors  <- c(cors, cor(mmeta$year_mean, mmeta$distance))
+    
+    if (cors[length(cors)] > bestcor) {
+      bestcor <- cors[length(cors)]
+      besttree <- ttree
+    }
+  }
+  
+  #print(bestcor)
+  if (plot) { 
+      pal <- get_palette("aaas", 4)
+      plot(100*edge1/rootBranchSum, cors, type='l', xlab = "Edge 1 length (%)", ylab="Correlation coefficient", las=1, col=pal[1], lwd=2, ylim=c(-1,1))
+      abline(v=100*tree$edge.length[1]/rootBranchSum, col=pal[2], lty=2, lwd=2)
+  }
+  
+  return(besttree)
+}
+
+# Get middle root
+# Root in the middle of the root branch (NOTE: Not the same as midpoint rooted, midpoint-rooted is the midpoint of the longest path beteween any two tips - this is probably not a good idea when including aDNA or passaged samples!)
+calibrateRoot <- function(tree, percentage=0.5) {
+  
+  rootNode <- getMRCA(tree, tree$tip.label)
+  
+  rootBranches <- which(tree$edge[, 1] == rootNode)
+  if (length(which(tree$edge[, 2] == rootNode)) > 0) {
+    stop("Something weird, root is not root!")
+  }
+  
+  rootBranchSum <- sum(tree$edge.length[rootBranches])
+  
+  tree$edge.length[rootBranches[1]] <- percentage*rootBranchSum
+  tree$edge.length[rootBranches[2]] <- (1-percentage)*rootBranchSum
+  
+  return(tree)
+}
+
+
+getTreePlot <- function(tree, meta, cols=c("#002147", "#69913B", "#872434", "#4891DC")) {
+  
+  meta  <- meta[match(tree$tip.label, meta$name),]
+  tmrca <- max(meta$distance)
+  
+  p <- ggtree(tree, ladderize=TRUE, size=0.25, color=cols[1]) %<+% meta
+  p <- p + geom_tippoint(aes(color=clade), size=2) + scale_color_nejm()
+  p <- p + geom_tiplab(size=3.5, hjust=-0.05, align=FALSE, color=cols[2]) 
+  p <- p + theme(legend.direction = "vertical", legend.position = c(0.02,0.75), 
+                 legend.justification = c("left","center"), 
+                 legend.text = element_text(size = 10), legend.title = element_text(size=10)) + 
+    xlim(-tmrca*0.05, tmrca*1.25)
+  p <- p + geom_treescale(y=-0.02*tree$Nnode, fontsize=3.5, linesize=0.25, offset=-0.03*tree$Nnode, width=1e-2) 
+  
+  return(p)
+}
+
+```
+
+# Alignment without recombining and hypervariable genes
+
+## Root in middle of root branch
+
+```{r root-to-tip, fig.width = 12, fig.height = 16} 
+
+    tree <- calibrateRoot(tree, 0.5)
+
+    # Full tree
+    midpointMeta    <- addRootToTipDistance(tree, metadata)
+    tempestMidpoint <- getTempEstPlot(midpointMeta, xvals = 'year_mean', cols = "clade", shapes = "type", title = "Full dataset")
+    
+    # Modern strains only
+    tree_modern   <- ape::drop.tip(tree, metadata$name[which(metadata$type == "Ancient")])
+    modernMeta    <- addRootToTipDistance(tree_modern, metadata)
+    tempestModern <- getTempEstPlot(modernMeta, xvals = 'year_mean', cols = "clade", shapes = "type", title = "Modern strains")
+    
+    # Modern clinical strains only
+    tree_clinical   <- ape::drop.tip(tree, metadata$name[which(metadata$type == "Ancient" | metadata$type == "Passaged")])
+    clinicalMeta    <- addRootToTipDistance(tree_clinical, metadata)
+    tempestClinical <- getTempEstPlot(clinicalMeta, xvals = 'year_mean', cols = "clade", title = "Modern clinical strains")
+    
+    # Modern TPE
+    tree_TPE   <- ape::keep.tip(tree_modern, modernMeta$name[which(modernMeta$clade == "TPE")])
+    tpeMeta    <- addRootToTipDistance(tree_TPE, metadata)
+    tempestTPE <- getTempEstPlot(tpeMeta, xvals = 'year_mean', cols = "type", title = "Modern TPE strains")
+    
+    # Modern TEN
+    tree_TEN   <- ape::keep.tip(tree_modern, modernMeta$name[which(modernMeta$clade == "TEN")])
+    tenMeta    <- addRootToTipDistance(tree_TEN, metadata)
+    tempestTEN <- getTempEstPlot(tenMeta, xvals = 'year_mean', cols = "type", title = "Modern TEN strains")
+    
+    # Modern SS14
+    tree_SS14   <- ape::keep.tip(tree_modern, modernMeta$name[which(modernMeta$clade == "SS14")])
+    ss14Meta    <- addRootToTipDistance(tree_SS14, metadata)
+    tempestSS14 <- getTempEstPlot(ss14Meta, xvals = 'year_mean', cols = "type", title = "Modern SS14 strains")
+    
+    # Modern Nichols
+    tree_nichols   <- ape::keep.tip(tree_modern, modernMeta$name[which(modernMeta$clade == "Nichols")])
+    nicholsMeta    <- addRootToTipDistance(tree_nichols, metadata)
+    tempestNichols <- getTempEstPlot(nicholsMeta, xvals = 'year_mean', cols = "type", title = "Modern Nichols strains")
+    
+    # Modern Nichols (clinical only)
+    tree_nichols2   <- ape::keep.tip(tree_modern, modernMeta$name[which(modernMeta$clade == "Nichols" & modernMeta$type == "Clinical")])
+    nichols2Meta    <- addRootToTipDistance(tree_nichols2, metadata)
+    tempestNichols2 <- getTempEstPlot(nichols2Meta, xvals = 'year_mean', cols = "type", title = "Modern Nichols clinical strains")
+    
+    plot_grid(tempestMidpoint, tempestModern,
+              tempestClinical, tempestTPE,
+              tempestTEN,      tempestSS14,
+              tempestNichols,  tempestNichols2, ncol=2, labels=letters[1:8])
+
+```
+
+\clearpage
+
+## Root at optimal point for root-to-tip correlation
+
+```{r root-to-tip-optim, fig.width = 12, fig.height = 16} 
+
+    tree        <- getBestTree(tree, metadata)
+
+    # Full tree
+    midpointMeta    <- addRootToTipDistance(tree, metadata)
+    tempestMidpoint <- getTempEstPlot(midpointMeta, xvals = 'year_mean', cols = "clade", shapes = "type", title = "Full dataset")
+    
+    # Modern strains only
+    tree_modern   <- ape::drop.tip(tree, metadata$name[which(metadata$type == "Ancient")])
+    modernMeta    <- addRootToTipDistance(tree_modern, metadata)
+    tempestModern <- getTempEstPlot(modernMeta, xvals = 'year_mean', cols = "clade", shapes = "type", title = "Modern strains")
+    
+    # Modern clinical strains only
+    tree_clinical   <- ape::drop.tip(tree, metadata$name[which(metadata$type == "Ancient" | metadata$type == "Passaged")])
+    clinicalMeta    <- addRootToTipDistance(tree_clinical, metadata)
+    tempestClinical <- getTempEstPlot(clinicalMeta, xvals = 'year_mean', cols = "clade", title = "Modern clinical strains")
+    
+    # Modern TPE
+    tree_TPE   <- ape::keep.tip(tree_modern, modernMeta$name[which(modernMeta$clade == "TPE")])
+    tpeMeta    <- addRootToTipDistance(tree_TPE, metadata)
+    tempestTPE <- getTempEstPlot(tpeMeta, xvals = 'year_mean', cols = "type", title = "Modern TPE strains")
+    
+    # Modern TEN
+    tree_TEN   <- ape::keep.tip(tree_modern, modernMeta$name[which(modernMeta$clade == "TEN")])
+    tenMeta    <- addRootToTipDistance(tree_TEN, metadata)
+    tempestTEN <- getTempEstPlot(tenMeta, xvals = 'year_mean', cols = "type", title = "Modern TEN strains")
+    
+    # Modern SS14
+    tree_SS14   <- ape::keep.tip(tree_modern, modernMeta$name[which(modernMeta$clade == "SS14")])
+    ss14Meta    <- addRootToTipDistance(tree_SS14, metadata)
+    tempestSS14 <- getTempEstPlot(ss14Meta, xvals = 'year_mean', cols = "type", title = "Modern SS14 strains")
+    
+    # Modern Nichols
+    tree_nichols   <- ape::keep.tip(tree_modern, modernMeta$name[which(modernMeta$clade == "Nichols")])
+    nicholsMeta    <- addRootToTipDistance(tree_nichols, metadata)
+    tempestNichols <- getTempEstPlot(nicholsMeta, xvals = 'year_mean', cols = "type", title = "Modern Nichols strains")
+    
+    # Modern Nichols (clinical only)
+    tree_nichols2   <- ape::keep.tip(tree_modern, modernMeta$name[which(modernMeta$clade == "Nichols" & modernMeta$type == "Clinical")])
+    nichols2Meta    <- addRootToTipDistance(tree_nichols2, metadata)
+    tempestNichols2 <- getTempEstPlot(nichols2Meta, xvals = 'year_mean', cols = "type", title = "Modern Nichols clinical strains")
+    
+    plot_grid(tempestMidpoint, tempestModern,
+              tempestClinical, tempestTPE,
+              tempestTEN,      tempestSS14,
+              tempestNichols,  tempestNichols2, ncol=2, labels=letters[1:8])
+
+```
+
+\clearpage
+
+# Alignment without recombining, hypervariable, 16S and 23S genes
+
+```{r root-to-tip-no16S23S, fig.width = 12, fig.height = 15} 
+
+    treeno16S23S <- calibrateRoot(treeno16S23S, 0.5)
+
+    # Full treeno16S23S
+    midpointMeta    <- addRootToTipDistance(treeno16S23S, metadata)
+    tempestMidpoint <- getTempEstPlot(midpointMeta, xvals = 'year_mean', cols = "clade", shapes = "type", title = "Full dataset")
+    
+    # Modern strains only
+    treeno16S23S_modern   <- ape::drop.tip(treeno16S23S, metadata$name[which(metadata$type == "Ancient")])
+    modernMeta    <- addRootToTipDistance(treeno16S23S_modern, metadata)
+    tempestModern <- getTempEstPlot(modernMeta, xvals = 'year_mean', cols = "clade", shapes = "type", title = "Modern strains")
+    
+    # Modern clinical strains only
+    treeno16S23S_clinical   <- ape::drop.tip(treeno16S23S, metadata$name[which(metadata$type == "Ancient" | metadata$type == "Passaged")])
+    clinicalMeta    <- addRootToTipDistance(treeno16S23S_clinical, metadata)
+    tempestClinical <- getTempEstPlot(clinicalMeta, xvals = 'year_mean', cols = "clade", title = "Modern clinical strains")
+    
+    # Modern TPE
+    treeno16S23S_TPE   <- ape::keep.tip(treeno16S23S_modern, modernMeta$name[which(modernMeta$clade == "TPE")])
+    tpeMeta    <- addRootToTipDistance(treeno16S23S_TPE, metadata)
+    tempestTPE <- getTempEstPlot(tpeMeta, xvals = 'year_mean', cols = "type", title = "Modern TPE strains")
+    
+    # Modern TEN
+    treeno16S23S_TEN   <- ape::keep.tip(treeno16S23S_modern, modernMeta$name[which(modernMeta$clade == "TEN")])
+    tenMeta    <- addRootToTipDistance(treeno16S23S_TEN, metadata)
+    tempestTEN <- getTempEstPlot(tenMeta, xvals = 'year_mean', cols = "type", title = "Modern TEN strains")
+    
+    # Modern SS14
+    treeno16S23S_SS14   <- ape::keep.tip(treeno16S23S_modern, modernMeta$name[which(modernMeta$clade == "SS14")])
+    ss14Meta    <- addRootToTipDistance(treeno16S23S_SS14, metadata)
+    tempestSS14 <- getTempEstPlot(ss14Meta, xvals = 'year_mean', cols = "type", title = "Modern SS14 strains")
+    
+    # Modern Nichols
+    treeno16S23S_nichols   <- ape::keep.tip(treeno16S23S_modern, modernMeta$name[which(modernMeta$clade == "Nichols")])
+    nicholsMeta    <- addRootToTipDistance(treeno16S23S_nichols, metadata)
+    tempestNichols <- getTempEstPlot(nicholsMeta, xvals = 'year_mean', cols = "type", title = "Modern Nichols strains")
+    
+    # Modern Nichols (clinical only)
+    treeno16S23S_nichols2   <- ape::keep.tip(treeno16S23S_modern, modernMeta$name[which(modernMeta$clade == "Nichols" & modernMeta$type == "Clinical")])
+    nichols2Meta    <- addRootToTipDistance(treeno16S23S_nichols2, metadata)
+    tempestNichols2 <- getTempEstPlot(nichols2Meta, xvals = 'year_mean', cols = "type", title = "Modern Nichols clinical strains")
+    
+    plot_grid(tempestMidpoint, tempestModern,
+              tempestClinical, tempestTPE,
+              tempestTEN,      tempestSS14,
+              tempestNichols,  tempestNichols2, ncol=2, labels=letters[1:8])
+
+
+```
+
+\clearpage
+
+# Session info
+
+```{r sessionInfo, results='markup'}
+    sessionInfo()
+```

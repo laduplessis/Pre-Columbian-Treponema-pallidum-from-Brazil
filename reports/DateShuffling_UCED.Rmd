@@ -1,0 +1,168 @@
+---
+title: "BEAST2 UCED date shuffling analyses"
+subtitle: "Redefining the treponemal history through pre-Columbian genomes from Brazil"
+author: "Louis du Plessis"
+date: '`r format(Sys.time(), "Last modified: %d %b %Y")`'
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    keep_tex: false
+    fig_crop: false
+params: 
+  truthpath   : "../results/beast2_dateshuffling/xml/output/"
+  shufflepath : "../results/beast2_dateshuffling/xml/output/"
+  outputpath  : "../results/beast2_dateshuffling/"
+  filename    : "all_01_02_23_alignment_norec.gtrgi.bsp10.uced.narrow"
+  burnin      : 0.1
+  reps        : 50
+
+---
+
+
+```{r rsetup, include=FALSE}
+  
+    library(cowplot)
+    library(coda)
+    library(beastio)
+    source("../scripts/HPDBeanPlot.R")
+
+    figpath <- paste0(params$outputpath, "figures/")
+    dir.create(figpath, recursive = TRUE, showWarnings = FALSE)
+    
+    knitr::opts_chunk$set(tidy=FALSE, cache=FALSE, results='hide', 
+                          dev="png", fig.path=figpath, fig.width=7.5, fig.height=4,
+                          message=FALSE, error=FALSE, warning=FALSE, echo=FALSE)
+
+    
+```
+
+
+```{r functions} 
+
+
+#' Assume rates is a coda mcmc object 
+plotRateComparison <- function(truerate, rates, names=NULL, xlabshift=-0.1,
+                               maxwidth=0.5, bw='sj', mostrecent=2020, monophyletic=NULL, palfn=ggsci::pal_nejm, ylab="s/s/y", ylim=NULL, ...) {
+
+      par(mar=c(3,5,1,1))
+
+      rates   <- mcmc(cbind(truerate, rates))
+      rateHPD <- getHPDMedian(rates)
+      
+      n        <- ncol(rates)
+      pal      <- palfn()(8)
+      paltrans <- palfn(alpha=0.5)(8)
+      
+      if (is.null(ylim)) {
+        ylim <- c(0, max(rateHPD)*1.05)
+      }
+      yrange <- diff(ylim)
+
+      plot(1, type='n', bty='n', xlim=c(0,n+1), ylim=ylim, axes=FALSE, xlab='', yaxs='i', xaxs='i', ylab=ylab, ...)
+      axis(2, las=1, cex.axis=0.6)
+      axis(1, at=0:n, labels = NA, lwd.ticks = NA)
+      #abline(v = 1:n, lwd=0.25, lty=3)
+      #abline(h = axTicks(2), lwd=0.25, lty=3)
+      text(1:n, y = ylim[1]+xlabshift*yrange, names, srt=90, xpd=TRUE, cex=0.6)
+
+      abline(h = rateHPD[1,c(1,3)], col=pal[1], lty=2)
+      abline(h = rateHPD[1,2],      col=pal[1], lty=2)      
+      HPDBeanPlot(rates, fill=paltrans[2], border=pal[2], medcol=pal[1], bw=bw, maxwidth=maxwidth, add=TRUE, axes=FALSE, lwd=c(0.5,1,0.5))
+
+      #abline(h = mean(rates[,1]), lty=2, col=pal[4])
+      #abline(h = max(rateHPD[2:nrow(rateHPD),]), lty=2, col=pal[4])
+      
+      #legend("top", horiz=TRUE, inset=c(0,-0.15), bty='n', fill=c(paltrans[c(3,2)]), border=c(pal[c(3,2)]), legend=legend, xpd=TRUE, cex=0.6)
+}
+
+
+extractFromMCMC.list <- function(trace.list, varname) {
+    result <- mcmc(sapply(1:nchain(trace.list), function(i) trace.list[[i]][,varname]))
+    varnames(result) <- chanames(trace.list)
+    return(result)
+}
+
+
+```
+
+
+\clearpage
+
+# Methods
+
+## Dataset
+
+Sampling dates of ancient samples were fixed to the mean of the radiocarbon date range. 
+
+
+## Model
+
+Used UCED model with dates fixed to the mean radiocarbon age.
+
+## Analyses
+All analyses were performed in BEAST v2.6.7. MCMC chains were run for 500 million steps and parameters sampled every 10,000 steps. 10% of samples were discarded as burn-in.
+
+
+\clearpage
+
+# Results
+
+## Convergence
+
+```{r shuffleddates-uced, cache=TRUE, eval=TRUE}
+
+  # Load data
+  shufflereps <- list.files(path=params$shufflepath, pattern = "*.log")
+  trace.shuffled <- readLog(paste0(params$shufflepath, shufflereps), burnin = params$burnin)
+  
+  # Check convergence
+  minESSs <- sapply(1:length(shufflereps), function(i) min(checkESS(trace.shuffled[[i]], cutoff=Inf)))
+
+```
+
+
+```{r shuffleddates-convergence}
+
+  plot(1, type='n', bty='n', xlim=c(0,length(minESSs)+1), ylim=c(0, max(minESSs)*1.05), axes=FALSE, xlab='', yaxs='i', xaxs='i', ylab="Lowest ESS value")
+  axis(2, las=1, cex.axis=0.6)
+  axis(1, at=0:length(minESSs), labels = NA, lwd.ticks = NA)
+  text(1:length(minESSs), y = -0.1*max(minESSs), rep(NA, length(minESSs)), srt=90, xpd=TRUE, cex=0.6)
+  
+  points(1:length(minESSs), sort(minESSs, decreasing = TRUE), pch=16, col='navy')
+  abline(h = 200, col='yellow', lty=2)
+  abline(h = 150, col='red', lty=2)
+  abline(v = params$reps, col='red', lty=2)
+      
+```
+   
+\clearpage
+   
+## Rate comparison
+      
+```{r shuffleddates-ucedrates, fig.cap="Date shuffling analyses performed under a **relaxed clock** models. The plot shows the posterior distributions for the mean clock rate, truncated at the upper and lower limits of the 95% HPD interval. Horizontal red lines indicate the medians of the posterior distributions. The red dashed lines indicate the median and upper and lower limits of the 95% HPD interval of the clock rate inferred under the true sampling dates.", eval=TRUE}
+  
+  trace.truth    <- readLog(paste0(params$truthpath, params$filename,".truth.121.log"), burnin = params$burnin)
+
+  # Plot rate comparison
+  rates.shuffled <- extractFromMCMC.list(trace.shuffled, "rateStat.mean")
+
+  # Random selection with ESS > 150
+  # selected <-  sample(which(minESSs > 150), params$reps)
+  
+  # Top ESSs
+  selected <- order(minESSs, decreasing = TRUE)[1:params$reps]
+
+  plotRateComparison(trace.truth[, "rateStat.mean"],  rates.shuffled[, selected], names=c("Truth", rep(NA,params$reps)))
+  
+```
+
+
+\clearpage
+
+# Session info
+
+```{r sessionInfo, results='markup'}
+    sessionInfo()
+```
