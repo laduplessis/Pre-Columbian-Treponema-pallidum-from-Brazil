@@ -8,14 +8,14 @@ This repository contains the data files, configuration files and scripts necesss
 
 ## Table of contents
 
-1. Abstract
-2. Molecular clock dating workflow
-  1. Dependencies
-  2. Data
-  3. Create alignments
-  4. BEAST2 analyses
-  5. BEAST2 date-randomization test
-  6. Post-processing and figures
+1. [Abstract](#Abstract)
+2. [Molecular clock dating workflow](#Molecular clock dating workflow)
+  1. [Dependencies](#Dependencies)
+  2. [Data](#Data)
+  3. [Create alignments](#Create alignments)
+  4. [BEAST2 analyses](#BEAST2 analyses)
+  5. [BEAST2 date-randomization test](#BEAST2 date-randomization test)
+  6. [Post-processing and figures](#Post-processing and figures)
 
 
 
@@ -121,7 +121,7 @@ python scripts/fasta2nexus.py -i results/alignments/noZH1540_01_02_23_snpalignme
 	- **Remember to untick monophyly constraints on taxon sets!**
 	- **Remember to set maximum population size!**
 	- Mean clock rate prior: lognormal with M=1E-7 s/s/y (in real space) and use the same starting value (narrow S=0.25, wide S=1)
-- Run [xml]() files in BEAST2.
+- Run [xml](https://github.com/laduplessis/Pre-Columbian-Treponema-pallidum-from-Brazil/tree/main/results/beast2) files in BEAST2.
 
 
 ### BEAST2 date-randomization test
@@ -135,7 +135,7 @@ python scripts/ShuffleBEASTXML.py -c results/beast2_dateshuffling/config/all_01_
 
 ```
 
-Run [xml]() files in BEAST2. 
+Run XML files in BEAST2. 
 
 
 ### Post-processing and figures
