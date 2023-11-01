@@ -4,6 +4,9 @@ subtitle: "Redefining the treponemal history through pre-Columbian genomes from 
 author: "Louis du Plessis"
 date: '`r format(Sys.time(), "Last modified: %d %b %Y")`'
 output:
+  github_document:
+      toc: true
+      toc_depth: 3
   pdf_document:
     toc: true
     toc_depth: 3
@@ -14,7 +17,7 @@ params:
   treeno16S23S : "../results/ml_trees/alignment_norec_no16S23S.treefile"
   metadata     : "../data/Genome_metadata_information.csv"
   outputpath   : "../results/temporal_signal/"
-  device       : "pdf"
+  device       : "png"
 ---
 
 ```{r rsetup, include=FALSE}

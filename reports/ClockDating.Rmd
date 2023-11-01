@@ -4,6 +4,9 @@ subtitle: "Redefining the treponemal history through pre-Columbian genomes from 
 author: "Louis du Plessis"
 date: '`r format(Sys.time(), "Last modified: %d %b %Y")`'
 output: 
+  github_document:
+      toc: true
+      toc_depth: 3
   pdf_document:
       latex_engine: xelatex
       toc: true
@@ -18,13 +21,14 @@ params:
   metadata   : "../data/Genome_metadata_information.csv"
   inputpath  : "../results/beast2/output/"
   outputpath : "../results/beast2/"
-  device     : "cairo_pdf"
+  device     : "png"
 ---
 
 
 ```{r setup, include=FALSE}
  
     # Use dev = "cairo_pdf" to include unicode fonts!
+
     library(coda)
     library(beastio)
 

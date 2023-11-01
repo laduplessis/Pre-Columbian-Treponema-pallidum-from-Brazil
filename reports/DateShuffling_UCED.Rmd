@@ -4,6 +4,9 @@ subtitle: "Redefining the treponemal history through pre-Columbian genomes from 
 author: "Louis du Plessis"
 date: '`r format(Sys.time(), "Last modified: %d %b %Y")`'
 output:
+  github_document:
+      toc: true
+      toc_depth: 3
   pdf_document:
     toc: true
     toc_depth: 3
@@ -17,7 +20,7 @@ params:
   filename    : "all_01_02_23_alignment_norec.gtrgi.bsp10.uced.narrow"
   burnin      : 0.1
   reps        : 50
-  device      : "pdf"
+  device      : "png"
 
 
 ---

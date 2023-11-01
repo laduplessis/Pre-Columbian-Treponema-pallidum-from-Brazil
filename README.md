@@ -141,6 +141,7 @@ Run [xml]() files in BEAST2.
 ### Post-processing and figures
 
 - Run RMarkdown reports in `reports/`
+- Change output to `pdf_document` and `device` to `pdf` or `cairo_pdf` to produce pdf figures.
 
 
 

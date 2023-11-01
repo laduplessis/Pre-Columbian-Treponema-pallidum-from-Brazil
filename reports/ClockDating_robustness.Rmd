@@ -4,6 +4,9 @@ subtitle: "Redefining the treponemal history through pre-Columbian genomes from 
 author: "Louis du Plessis"
 date: '`r format(Sys.time(), "Last modified: %d %b %Y")`'
 output: 
+  github_document:
+      toc: true
+      toc_depth: 3
   pdf_document:
       latex_engine: xelatex
       toc: true
@@ -19,7 +22,7 @@ params:
   inputpath     : "../results/beast2/output/"
   outputpath    : "../results/beast2/"
   mostrecent    : 2019
-  device        : "cairo_pdf"
+  device        : "png"
 ---
 
 
