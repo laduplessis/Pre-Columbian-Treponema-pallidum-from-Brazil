@@ -9,13 +9,13 @@ This repository contains the data files, configuration files and scripts necesss
 ## Table of contents
 
 1. [Abstract](#Abstract)
-2. [Molecular clock dating workflow](#Molecular clock dating workflow)
+2. [Molecular clock dating workflow](#Molecular-clock-dating-workflow)
   1. [Dependencies](#Dependencies)
   2. [Data](#Data)
-  3. [Create alignments](#Create alignments)
-  4. [BEAST2 analyses](#BEAST2 analyses)
-  5. [BEAST2 date-randomization test](#BEAST2 date-randomization test)
-  6. [Post-processing and figures](#Post-processing and figures)
+  3. [Create alignments](#Create-alignments)
+  4. [BEAST2 analyses](#BEAST2-analyses)
+  5. [BEAST2 date-randomization test](#BEAST2-date-randomization-test)
+  6. [Post-processing and figures](#Post-processing-and-figures)
 
 
 
